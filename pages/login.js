@@ -1,0 +1,114 @@
+import { useState } from 'react'
+import { useRouter } from 'next/router'
+import { signIn } from '../lib/supabase'
+import { useToast } from '../components/Layout'
+
+export default function LoginPage() {
+  const router = useRouter()
+  const { showToast } = useToast()
+  const [form, setForm] = useState({ email: '', password: '' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handle = async (e) => {
+    e.preventDefault()
+    setLoading(true); setError('')
+    const { error } = await signIn(form.email, form.password)
+    if (error) { setError(error.message); setLoading(false); return }
+    showToast('Welcome back.', 'success')
+    router.push(router.query.redirect || '/store')
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 24, position: 'relative',
+    }}>
+      {/* BG grid */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'linear-gradient(rgba(184,150,12,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(184,150,12,0.02) 1px, transparent 1px)',
+        backgroundSize: '64px 64px',
+      }}/>
+
+      <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: '2.5rem',
+            letterSpacing: '0.3em',
+          }} className="text-gold-shine">VAULT</div>
+          <div style={{
+            fontFamily: 'var(--font-mono)', fontSize: '0.55rem',
+            color: 'var(--smoke)', letterSpacing: '0.3em', marginTop: 4,
+          }}>DIGITAL MART</div>
+        </div>
+
+        <div className="card" style={{ padding: 40 }}>
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{
+              fontFamily: 'var(--font-display)', fontSize: '1.4rem',
+              letterSpacing: '0.08em', marginBottom: 8,
+            }}>Sign In</h2>
+            <p style={{
+              fontFamily: 'var(--font-body)', fontSize: '0.9rem',
+              color: 'var(--ash)', fontStyle: 'italic',
+            }}>Access your account and purchases.</p>
+          </div>
+
+          <form onSubmit={handle} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div className="inp-wrap">
+              <label className="inp-label">Email</label>
+              <input
+                className="inp"
+                type="email"
+                placeholder="your@email.com"
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                required
+              />
+            </div>
+            <div className="inp-wrap">
+              <label className="inp-label">Password</label>
+              <input
+                className="inp"
+                type="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                required
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
+                color: 'var(--ember)', padding: '10px 14px',
+                border: '1px solid var(--blood)',
+                background: 'rgba(122,0,0,0.1)',
+              }}>{error}</div>
+            )}
+
+            <button type="submit" className="btn btn-gold btn-full" disabled={loading}>
+              {loading ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }}/> Signing in...</> : 'Enter the Vault'}
+            </button>
+          </form>
+
+          <hr className="divider" style={{ margin: '28px 0' }}/>
+
+          <p style={{
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
+            color: 'var(--ash)', letterSpacing: '0.08em',
+          }}>
+            No account?{' '}
+            <span
+              onClick={() => router.push('/signup')}
+              style={{ color: 'var(--gold-mid)', cursor: 'pointer' }}
+            >Create one free →</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
