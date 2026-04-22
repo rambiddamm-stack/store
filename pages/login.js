@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
-import { signIn } from '../lib/supabase'
+import { signIn } from '../lib/firebase'
 import { useToast } from '../components/Layout'
 
 export default function LoginPage() {
