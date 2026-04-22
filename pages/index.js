@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { getProducts } from '../lib/supabase'
+import { getProducts } from '../lib/firebase'
 import { useCart } from '../components/Layout'
 
 const StarRating = ({ rating }) => (
