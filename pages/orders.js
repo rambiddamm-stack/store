@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { getUserOrders } from '../lib/supabase'
+import { getUserOrders } from '../lib/firebase'
 import { useAuth, useToast } from '../components/Layout'
 
 export default function OrdersPage() {
