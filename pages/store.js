@@ -1,4 +1,4 @@
-mport { useState, useEffect } from 'react'import { useRouter } from 'next/router'import { getProducts } from '../lib/firebase'import { useAuth } from '../components/Layout'
+import { useState, useEffect } from 'react'import { useRouter } from 'next/router'import { getProducts } from '../lib/firebase'import { useAuth } from '../components/Layout'
 const CATEGORIES = ['All', 'Automation', 'AI Tools', 'Business', 'Analytics', 'Templates']
 const badgeMap = {  BESTSELLER: 'badge-gold', HOT: 'badge-red',  PREMIUM: 'badge-elite', NEW: 'badge-gold', ELITE: 'badge-elite',}
 const StarRating = ({ rating }) => (  <span style={{ color: 'var(--gold)', fontSize: '0.75rem', letterSpacing: 2 }}>    {'★'.repeat(Math.floor(rating))}    <span style={{ color: 'var(--ash)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', marginLeft: 5 }}>      {rating}    </span>  </span>)
