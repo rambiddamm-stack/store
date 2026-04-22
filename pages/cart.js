@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { useAuth, useCart, useToast } from '../components/Layout'
-import { createOrder } from '../lib/supabase'
+import { createOrder } from '../lib/firebase'
 
 export default function CartPage() {
   const router = useRouter()
