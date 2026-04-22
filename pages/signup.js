@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
-import { signUp } from '../lib/supabase'
+import { signUp } from '../lib/firebase'
 import { useToast } from '../components/Layout'
 
 export default function SignupPage() {
