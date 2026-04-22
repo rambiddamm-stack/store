@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { getProduct, checkPurchased } from '../../lib/supabase'
+import { getProduct, checkPurchased } from '../../lib/firebase'
 import { useAuth, useCart, useToast } from '../../components/Layout'
 
 export default function ProductPage() {
