@@ -1,312 +1,202 @@
-mport { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 import { useRouter } from 'next/router'
-import { getProducts } from '../lib/supabase'
-import { useCart } from '../components/Layout'
+import { auth, getProfile, logOut } from '../lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 
-const StarRating = ({ rating }) => (
-  <span style={{ color: 'var(--gold)', fontSize: '0.75rem', letterSpacing: 2 }}>
-    {'★'.repeat(Math.floor(rating))}{'☆'.repeat(5 - Math.floor(rating))}
-    <span style={{ color: 'var(--ash)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', marginLeft: 6 }}>
-      {rating}
-    </span>
-  </span>
-)
+export const AuthContext = createContext({})
+export const useAuth = () => useContext(AuthContext)
 
-const ProductCard = ({ product, onClick }) => {
-  const badgeMap = {
-    BESTSELLER: 'badge-gold', HOT: 'badge-red',
-    PREMIUM: 'badge-elite', NEW: 'badge-gold', ELITE: 'badge-elite',
-  }
+export const CartContext = createContext({})
+export const useCart = () => useContext(CartContext)
 
+export const ToastContext = createContext({})
+export const useToast = () => useContext(ToastContext)
+
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500)
+    return () => clearTimeout(t)
+  }, [])
   return (
-    <div
-      className="card"
-      onClick={() => onClick(product.slug)}
-      style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}
-    >
-      {/* Color bar */}
-      <div style={{
-        height: 3,
-        background: `linear-gradient(90deg, var(--blood), var(--gold-dim))`,
-      }}/>
-
-      <div style={{ padding: 28 }}>
-        {/* Badge + category */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.55rem',
-            color: 'var(--smoke)', letterSpacing: '0.2em', textTransform: 'uppercase',
-          }}>
-            {product.categories?.icon} {product.categories?.name}
-          </span>
-          {product.badge && (
-            <span className={`badge ${badgeMap[product.badge] || 'badge-ash'}`}>
-              {product.badge}
-            </span>
-          )}
-        </div>
-
-        <h3 style={{
-          fontFamily: 'var(--font-display)', fontSize: '1.15rem',
-          color: 'var(--cream)', marginBottom: 10, letterSpacing: '0.05em',
-        }}>{product.name}</h3>
-
-        <p style={{
-          fontFamily: 'var(--font-body)', fontSize: '0.9rem',
-          color: 'var(--ash)', lineHeight: 1.6, marginBottom: 20,
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-        }}>{product.description}</p>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div>
-            <div style={{
-              fontFamily: 'var(--font-display)', fontSize: '1.5rem',
-              color: 'var(--gold-shine)', letterSpacing: '0.05em',
-            }}>
-              ${product.price}
-              {product.original_price && (
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-                  color: 'var(--smoke)', textDecoration: 'line-through', marginLeft: 8,
-                }}>${product.original_price}</span>
-              )}
-            </div>
-            <div style={{ marginTop: 4 }}>
-              <StarRating rating={product.rating} />
-            </div>
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
-            color: 'var(--smoke)', letterSpacing: '0.1em', textAlign: 'right',
-          }}>
-            {product.total_sales}+ sold
-          </div>
-        </div>
-      </div>
+    <div className={`toast ${type}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <span>{type === 'success' ? '◆' : '✕'}</span>
+      <span>{message}</span>
+      <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--ash)', cursor: 'pointer', fontSize: '1rem' }}>×</button>
     </div>
   )
 }
 
-export default function HomePage() {
+const Navbar = ({ user, cart }) => {
   const router = useRouter()
-  const [products, setProducts] = useState([])
-  const [visible, setVisible] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const cartCount = cart.reduce((s, i) => s + (i.qty || 1), 0)
 
   useEffect(() => {
-    setTimeout(() => setVisible(true), 100)
-    getProducts().then(({ data }) => {
-      if (data) setProducts(data.filter(p => p.is_featured).slice(0, 3))
-    })
+    const fn = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', fn)
+    return () => window.removeEventListener('scroll', fn)
   }, [])
 
+  const links = [
+    { href: '/', label: 'Home' },
+    { href: '/store', label: 'Store' },
+    ...(user ? [{ href: '/orders', label: 'Orders' }] : []),
+    ...(user?.is_admin ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
+  ]
+
   return (
-    <div>
-      {/* ── HERO ── */}
-      <section style={{
-        minHeight: '100vh',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        position: 'relative', overflow: 'hidden',
-        padding: '100px 24px 80px',
-        textAlign: 'center',
-      }}>
-        {/* Grid bg */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: `
-            linear-gradient(rgba(184,150,12,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(184,150,12,0.025) 1px, transparent 1px)
-          `,
-          backgroundSize: '64px 64px',
-        }}/>
-
-        {/* Radial glow */}
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 700, height: 700, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(122,0,0,0.07) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}/>
-
-        {/* Vertical accent lines */}
-        {[15, 35, 65, 85].map(p => (
-          <div key={p} style={{
-            position: 'absolute', top: 0, left: `${p}%`,
-            width: 1, height: '35%',
-            background: 'linear-gradient(180deg, transparent, rgba(122,0,0,0.25), transparent)',
-            pointerEvents: 'none',
-          }}/>
-        ))}
-
-        <div style={{
-          position: 'relative', zIndex: 1,
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'translateY(0)' : 'translateY(40px)',
-          transition: 'all 0.9s cubic-bezier(0.16, 1, 0.3, 1)',
-          maxWidth: 780,
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
-            letterSpacing: '0.35em', textTransform: 'uppercase',
-            color: 'var(--crimson)', marginBottom: 28,
-            border: '1px solid var(--blood)',
-            display: 'inline-block', padding: '6px 20px',
-          }}>
-            ◆ Premium Digital Marketplace ◆
-          </div>
-
-          <h1 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(3.5rem, 12vw, 8rem)',
-            fontWeight: 900,
-            lineHeight: 0.9,
-            letterSpacing: '0.04em',
-            marginBottom: 32,
-          }}>
-            <span className="text-gold-shine">VAULT</span>
-          </h1>
-
-          <p style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
-            fontStyle: 'italic',
-            color: 'var(--ash)',
-            maxWidth: 520, margin: '0 auto 48px',
-            lineHeight: 1.85,
-          }}>
-            Where automation becomes empire. Premium AI tools, workflows &amp; systems — built for those who operate differently.
-          </p>
-
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-gold btn-lg"
-              onClick={() => router.push('/store')}
-            >
-              Enter the Vault
-            </button>
-            <button
-              className="btn btn-ghost"
-              onClick={() => router.push('/login')}
-            >
-              Sign In
-            </button>
+    <nav style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
+      height: 'var(--nav-height)',
+      background: scrolled ? 'rgba(3,3,3,0.97)' : 'rgba(3,3,3,0.85)',
+      borderBottom: `1px solid ${scrolled ? 'var(--border)' : 'transparent'}`,
+      backdropFilter: 'blur(20px)',
+      transition: 'all 0.3s',
+    }}>
+      <div className="container" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div onClick={() => router.push('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="28" height="28" viewBox="0 0 28 28">
+            <polygon points="14,2 26,8 26,20 14,26 2,20 2,8" fill="none" stroke="url(#g)" strokeWidth="1.5"/>
+            <polygon points="14,7 21,11 21,17 14,21 7,17 7,11" fill="url(#g2)" opacity="0.6"/>
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#8b0000"/><stop offset="100%" stopColor="#d4af37"/>
+              </linearGradient>
+              <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#7a0000" stopOpacity="0.5"/><stop offset="100%" stopColor="#b8960c" stopOpacity="0.3"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', letterSpacing: '0.3em', color: 'var(--gold-shine)', lineHeight: 1 }}>VAULT</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.45rem', color: 'var(--smoke)', letterSpacing: '0.25em', textTransform: 'uppercase' }}>digital mart</div>
           </div>
         </div>
 
-        {/* Stats bar */}
-        <div style={{
-          position: 'absolute', bottom: 48, left: '50%',
-          transform: 'translateX(-50%)',
-          display: 'flex', gap: 56, flexWrap: 'wrap', justifyContent: 'center',
-          opacity: visible ? 1 : 0,
-          transition: 'opacity 1s ease 0.6s',
-        }}>
-          {[['1,200+', 'Customers'], ['$240K+', 'Revenue'], ['6', 'Products'], ['98%', 'Satisfaction']].map(([val, label]) => (
-            <div key={label} style={{ textAlign: 'center' }}>
-              <div style={{
-                fontFamily: 'var(--font-display)', fontSize: '1.6rem',
-                color: 'var(--gold-mid)', letterSpacing: '0.05em',
-              }}>{val}</div>
-              <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: '0.5rem',
-                color: 'var(--smoke)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 4,
-              }}>{label}</div>
-            </div>
+        <div style={{ display: 'flex', gap: 36, alignItems: 'center' }} className="hide-sm">
+          {links.map(l => (
+            <span key={l.href} onClick={() => router.push(l.href)} style={{
+              fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.2em',
+              textTransform: 'uppercase', color: router.pathname === l.href ? 'var(--gold-mid)' : 'var(--ash)',
+              cursor: 'pointer', transition: 'color 0.2s',
+              borderBottom: router.pathname === l.href ? '1px solid var(--gold-dim)' : '1px solid transparent',
+              paddingBottom: 2,
+            }}>{l.label}</span>
           ))}
         </div>
-      </section>
 
-      {/* ── FEATURED PRODUCTS ── */}
-      <section style={{ padding: '80px 0' }}>
-        <div className="container">
-          <div style={{
-            display: 'flex', justifyContent: 'space-between',
-            alignItems: 'flex-end', marginBottom: 48, flexWrap: 'wrap', gap: 16,
-          }}>
-            <div>
-              <div className="section-label">◆ Featured</div>
-              <h2 className="section-title">Top Sellers</h2>
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => router.push('/store')}>
-              View All Products →
-            </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div onClick={() => router.push('/cart')} style={{ position: 'relative', cursor: 'pointer', padding: '8px 10px', border: '1px solid var(--border-dim)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <path d="M16 10a4 4 0 01-8 0"/>
+            </svg>
+            {cartCount > 0 && (
+              <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--crimson)', color: 'white', width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontFamily: 'var(--font-mono)' }}>{cartCount}</span>
+            )}
           </div>
 
-          {products.length > 0 ? (
-            <div className="grid-products">
-              {products.map(p => (
-                <ProductCard key={p.id} product={p} onClick={(slug) => router.push(`/product/${slug}`)} />
-              ))}
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div onClick={() => router.push('/profile')} style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, var(--blood), var(--gold-dim))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: '0.8rem', color: 'var(--cream)', cursor: 'pointer' }}>
+                {(user.name || user.email || 'U')[0].toUpperCase()}
+              </div>
+              <span onClick={() => logOut().then(() => router.push('/'))} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--smoke)', cursor: 'pointer', letterSpacing: '0.1em' }} className="hide-sm">EXIT</span>
             </div>
           ) : (
-            <div style={{
-              textAlign: 'center', padding: '60px 0',
-              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-              color: 'var(--smoke)', letterSpacing: '0.15em',
-            }}>
-              <div className="spinner" style={{ margin: '0 auto 16px' }}/>
-              Loading products...
-            </div>
+            <button className="btn btn-gold btn-sm" onClick={() => router.push('/login')}>Sign In</button>
           )}
         </div>
-      </section>
+      </div>
+    </nav>
+  )
+}
 
-      {/* ── WHY VAULT ── */}
-      <section style={{
-        padding: '80px 0',
-        background: 'var(--obsidian)',
-        borderTop: '1px solid var(--border-dim)',
-        borderBottom: '1px solid var(--border-dim)',
-      }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <div className="section-label">◆ Why Choose</div>
-            <h2 className="section-title">The VAULT Difference</h2>
-          </div>
-          <div className="grid-3">
-            {[
-              { icon: '⚡', title: 'Instant Delivery', desc: 'Download immediately after purchase. No waiting, no delays.' },
-              { icon: '♾️', title: 'Lifetime Updates', desc: 'Every product is updated as tools evolve. Pay once, use forever.' },
-              { icon: '🔒', title: 'Secure & Private', desc: 'Your data stays yours. No tracking, no sharing, no compromise.' },
-            ].map(f => (
-              <div key={f.title} className="stat-card" style={{ textAlign: 'center', padding: 36 }}>
-                <div style={{ fontSize: '2rem', marginBottom: 16 }}>{f.icon}</div>
-                <h3 style={{
-                  fontFamily: 'var(--font-display)', fontSize: '1rem',
-                  letterSpacing: '0.1em', marginBottom: 12,
-                }}>{f.title}</h3>
-                <p style={{
-                  fontFamily: 'var(--font-body)', fontSize: '0.9rem',
-                  color: 'var(--ash)', lineHeight: 1.7, fontStyle: 'italic',
-                }}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
+const Footer = () => (
+  <footer style={{ borderTop: '1px solid var(--border-dim)', padding: '48px 0 32px', marginTop: 80 }}>
+    <div className="container">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', letterSpacing: '0.3em', color: 'var(--gold-shine)' }}>VAULT</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: 'var(--smoke)', fontStyle: 'italic', marginTop: 4 }}>Premium Digital Marketplace</div>
         </div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section style={{ padding: '100px 24px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <h2 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(1.8rem, 5vw, 3rem)',
-            marginBottom: 20,
-          }}>
-            Ready to <span className="text-gold-shine">automate</span> your empire?
-          </h2>
-          <p style={{
-            fontFamily: 'var(--font-body)', fontSize: '1.1rem',
-            color: 'var(--ash)', fontStyle: 'italic', marginBottom: 40, lineHeight: 1.8,
-          }}>
-            Join 1,200+ operators who run smarter systems, close more clients, and work fewer hours.
-          </p>
-          <button className="btn btn-gold btn-lg" onClick={() => useRouter().push('/store')}>
-            Browse the Store
-          </button>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--smoke)', letterSpacing: '0.15em' }}>
+          © {new Date().getFullYear()} VAULT. All rights reserved.
         </div>
-      </section>
+      </div>
+      <hr className="divider" style={{ marginTop: 32 }}/>
+      <p style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--fog)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+        Built different. Priced right. Delivered instantly.
+      </p>
     </div>
+  </footer>
+)
+
+export default function Layout({ children }) {
+  const router = useRouter()
+  const [user, setUser] = useState(null)
+  const [cart, setCart] = useState([])
+  const [toast, setToast] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const { data: profile } = await getProfile(firebaseUser.uid)
+        setUser({ ...firebaseUser, ...profile })
+      } else {
+        setUser(null)
+      }
+      setLoading(false)
+    })
+    const saved = localStorage.getItem('vault_cart')
+    if (saved) setCart(JSON.parse(saved))
+    return () => unsub()
+  }, [])
+
+  const addToCart = (product) => {
+    setCart(prev => {
+      const exists = prev.find(i => i.id === product.id)
+      const updated = exists ? prev.map(i => i.id === product.id ? { ...i, qty: (i.qty || 1) + 1 } : i) : [...prev, { ...product, qty: 1 }]
+      localStorage.setItem('vault_cart', JSON.stringify(updated))
+      return updated
+    })
+    showToast(`${product.name} added to cart`, 'success')
+  }
+
+  const removeFromCart = (id) => {
+    setCart(prev => {
+      const updated = prev.filter(i => i.id !== id)
+      localStorage.setItem('vault_cart', JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const clearCart = () => { setCart([]); localStorage.removeItem('vault_cart') }
+  const showToast = (message, type = 'info') => setToast({ message, type })
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: 'var(--void)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div className="spinner" style={{ width: 32, height: 32, margin: '0 auto 16px' }}/>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--smoke)', letterSpacing: '0.2em' }}>LOADING VAULT...</div>
+      </div>
+    </div>
+  )
+
+  return (
+    <AuthContext.Provider value={{ user, setUser }}>
+      <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart }}>
+        <ToastContext.Provider value={{ showToast }}>
+          <div style={{ minHeight: '100vh' }}>
+            <Navbar user={user} cart={cart} />
+            <main style={{ paddingTop: 'var(--nav-height)' }}>{children}</main>
+            <Footer />
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+          </div>
+        </ToastContext.Provider>
+      </CartContext.Provider>
+    </AuthContext.Provider>
   )
 }
