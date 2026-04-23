@@ -1,19 +1,19 @@
+// ─── pages/orders.js ───────────────────────────────────────────────────────────
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { getUserOrders } from '../lib/firebase'
-import { useAuth, useToast } from '../components/Layout'
+import { useAuth } from '../components/Layout'
 
 export default function OrdersPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const { showToast } = useToast()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!user) { router.push('/login?redirect=/orders'); return }
-    getUserOrders(user.id).then(({ data }) => {
-      setOrders(data || [])
+    getUserOrders(user.id || user.uid).then(({ data }) => {
+      setOrders((data || []).slice().reverse())
       setLoading(false)
     })
   }, [user])
@@ -21,100 +21,114 @@ export default function OrdersPage() {
   if (!user) return null
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="spinner" style={{ width: 32, height: 32 }}/>
+    <div style={{ minHeight: 'calc(100vh - var(--nav-h))', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+      <div className="spinner" style={{ width: 28, height: 28 }}/>
     </div>
   )
 
   if (orders.length === 0) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}>
+    <div style={{ minHeight: 'calc(100vh - var(--nav-h))', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24, background: 'var(--bg)' }}>
       <div>
-        <div style={{ fontSize: '3rem', marginBottom: 20, opacity: 0.4 }}>◇</div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', marginBottom: 12 }}>No Orders Yet</h2>
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--ash)', fontStyle: 'italic', marginBottom: 32 }}>
-          Your purchase history will appear here.
-        </p>
-        <button className="btn btn-gold" onClick={() => router.push('/store')}>Shop Now</button>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 32 }}>📦</div>
+        <h2 style={{ marginBottom: 8 }}>No orders yet</h2>
+        <p style={{ color: 'var(--ink-4)', marginBottom: 28, fontSize: '1.0625rem' }}>Your purchases will show up here.</p>
+        <button className="btn btn-primary-dark btn-lg" onClick={() => router.push('/store')}>Browse Products →</button>
       </div>
     </div>
   )
 
   return (
-    <div style={{ minHeight: '100vh', padding: '60px 0' }}>
-      <div className="container">
-        <div className="section-label">◆ Account</div>
-        <h1 className="section-title" style={{ marginBottom: 8 }}>My Orders</h1>
-        <p style={{
-          fontFamily: 'var(--font-body)', color: 'var(--ash)',
-          fontStyle: 'italic', marginBottom: 40,
-        }}>
-          {orders.length} order{orders.length !== 1 ? 's' : ''} — all purchases available for instant download.
-        </p>
+    <div style={{ minHeight: 'calc(100vh - var(--nav-h))', background: 'var(--bg)', padding: '40px 0 80px' }}>
+      <div className="container" style={{ maxWidth: 760 }}>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--blue)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>Account</div>
+          <h1 style={{ marginBottom: 6 }}>My Orders</h1>
+          <p style={{ color: 'var(--ink-4)', fontSize: '1.0625rem' }}>
+            {orders.length} order{orders.length !== 1 ? 's' : ''} — all purchases instantly accessible.
+          </p>
+        </div>
 
-        {orders.map(order => (
-          <div key={order.id} className="card" style={{ padding: 28, marginBottom: 20 }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12,
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {orders.map(order => (
+            <div key={order.id} style={{
+              background: 'var(--white)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-xl)', overflow: 'hidden',
+              transition: 'var(--trans)',
             }}>
-              <div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
-                  color: 'var(--smoke)', letterSpacing: '0.15em',
-                  textTransform: 'uppercase', marginBottom: 6,
-                }}>
-                  Order #{order.id.slice(0, 8).toUpperCase()}
-                </div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
-                  color: 'var(--ash)',
-                }}>
-                  {new Date(order.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric', month: 'long', day: 'numeric'
-                  })}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <span className={`status status-${order.status}`}>{order.status}</span>
-                <span style={{
-                  fontFamily: 'var(--font-display)', fontSize: '1.3rem', color: 'var(--gold-shine)',
-                }}>
-                  ${order.total.toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            <hr className="divider" style={{ margin: '0 0 20px' }}/>
-
-            {order.order_items?.map(item => (
-              <div key={item.id} style={{
-                display: 'flex', justifyContent: 'space-between',
-                alignItems: 'center', padding: '10px 0',
-                borderBottom: '1px solid var(--border-dim)',
+              {/* Order header */}
+              <div style={{
+                padding: '16px 22px',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                flexWrap: 'wrap', gap: 10,
+                background: 'var(--bg)',
               }}>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--ink-5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2, fontWeight: 600 }}>Order</div>
+                    <div style={{ fontSize: '0.875rem', fontFamily: 'monospace', color: 'var(--ink-3)' }}>
+                      #{order.id?.slice(0, 8).toUpperCase()}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--ink-5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2, fontWeight: 600 }}>Date</div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--ink-3)' }}>
+                      {new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{ color: 'var(--gold-dim)', fontSize: '0.6rem' }}>◆</span>
-                  <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.95rem' }}>
-                    {item.product_name}
+                  <span className={`status status-${order.status}`}>{order.status}</span>
+                  <span style={{ fontSize: '1.125rem', fontWeight: 700, letterSpacing: '-0.03em' }}>
+                    ${order.total?.toFixed(2)}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--ash)',
-                  }}>${item.price}</span>
-                  {order.status === 'paid' && (
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => showToast('Download starting...', 'success')}
-                    >
-                      ↓ Download
-                    </button>
-                  )}
-                </div>
               </div>
-            ))}
-          </div>
-        ))}
+
+              {/* Items */}
+              <div style={{ padding: '8px 0' }}>
+                {(order.items || order.order_items || []).map((item, i) => (
+                  <div key={item.id || i} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 22px',
+                    borderBottom: i < (order.items || order.order_items || []).length - 1 ? '1px solid var(--border)' : 'none',
+                  }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 9,
+                        background: 'linear-gradient(145deg,#e8f0fe,#d0e3ff)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 16, flexShrink: 0,
+                      }}>
+                        {item.icon || '📦'}
+                      </div>
+                      <span style={{ fontWeight: 500, fontSize: '0.9375rem' }}>
+                        {item.name || item.product_name}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.9375rem', fontWeight: 600 }}>
+                        ${item.price}
+                      </span>
+                      {order.status === 'paid' && (
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            background: 'var(--blue-soft)', color: 'var(--blue)',
+                            borderRadius: 'var(--radius-full)',
+                          }}
+                          onClick={() => window.open(item.download_url || '#', '_blank')}
+                        >
+                          ↓ Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
